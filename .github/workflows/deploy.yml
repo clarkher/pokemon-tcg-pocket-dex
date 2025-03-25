@@ -2,32 +2,46 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # 當 main 分支有推送時觸發
-  workflow_dispatch:    # 允許手動觸發
+    branches: ['main']
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
+      
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
-      - name: Install Dependencies
+          node-version: 18
+          
+      - name: Install dependencies
         run: npm install
-
+        
       - name: Build
         run: npm run build
-        env:
-          NEXT_PUBLIC_BASE_PATH: /pokemon-tcg-pocket-dex  # 你的 repo 名稱
-
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: out     # Next.js 建置輸出的資料夾
-          branch: gh-pages  # 部署的目標分支
+          path: './dist'
+          
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
