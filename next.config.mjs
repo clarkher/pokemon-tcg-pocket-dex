@@ -21,9 +21,6 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
-  // 新增 GitHub Pages 所需的設定
-  output: 'export',  // 靜態輸出
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
 }
 
 mergeConfig(nextConfig, userConfig)
