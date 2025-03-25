@@ -1,68 +1,59 @@
-import { NextResponse, type NextRequest } from "next/server"
-import { verifyAuth } from "@/lib/api/routes/auth"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { verifyToken } from "@/lib/api/routes/auth"
+
+// 定義需要保護的路由
+const protectedRoutes = ["/api/users/me", "/api/cards/favorite", "/api/decks/create", "/api/decks/edit"]
+
+// 定義需要管理員權限的路由
+const adminRoutes = ["/api/admin", "/admin"]
 
 export async function middleware(request: NextRequest) {
-  // 開發環境下跳過身份驗證
-  if (process.env.NODE_ENV === "development") {
+  const { pathname } = request.nextUrl
+
+  // 檢查是否為開發環境
+  const isDevelopment = process.env.NODE_ENV === "development"
+
+  // 在開發環境中，如果訪問管理員路由，允許訪問
+  if (isDevelopment && pathname.startsWith("/admin")) {
     return NextResponse.next()
   }
 
-  const path = request.nextUrl.pathname
+  // 檢查是否為受保護的路由
+  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
+  const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route))
 
-  // 定義需要保護的路徑
-  const protectedRoutes = ["/api/users/me", "/api/decks/create", "/api/cards/favorite"]
-
-  // 定義管理員路徑
-  const adminRoutes = ["/api/admin", "/admin"]
-
-  // 檢查是否是受保護的 API 路由
-  const isProtectedApiRoute = protectedRoutes.some((route) => path.startsWith(route))
-
-  // 檢查是否是管理員路由
-  const isAdminRoute = adminRoutes.some((route) => path.startsWith(route))
-
-  // 如果不是受保護的路由或管理員路由，則繼續
-  if (!isProtectedApiRoute && !isAdminRoute) {
+  if (!isProtectedRoute && !isAdminRoute) {
     return NextResponse.next()
   }
 
-  // 驗證令牌
-  const token = request.headers.get("authorization")?.split(" ")[1] || ""
+  // 獲取授權頭
+  const authHeader = request.headers.get("authorization")
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
+  }
 
+  const token = authHeader.split(" ")[1]
   try {
-    const decodedToken = await verifyAuth(token)
+    const { valid, data, error } = await verifyToken(token)
 
-    // 檢查管理員權限
-    if (isAdminRoute && !decodedToken.isAdmin) {
+    if (!valid || !data) {
+      return NextResponse.json({ success: false, message: error || "Invalid token" }, { status: 401 })
+    }
+
+    // 檢查管理員路由的權限
+    if (isAdminRoute && !data.isAdmin) {
       return NextResponse.json({ success: false, message: "Admin access required" }, { status: 403 })
     }
 
-    // 將用戶信息添加到請求頭中
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set("x-user-id", decodedToken.userId)
-    requestHeaders.set("x-user-email", decodedToken.email)
-    requestHeaders.set("x-user-role", decodedToken.isAdmin ? "admin" : "user")
-
-    // 繼續處理請求
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
+    return NextResponse.next()
   } catch (error) {
-    // 身份驗證失敗
     return NextResponse.json({ success: false, message: "Authentication failed" }, { status: 401 })
   }
 }
 
-// 配置中間件應用的路徑
+// 配置中間件匹配的路由
 export const config = {
-  matcher: [
-    "/api/users/me/:path*",
-    "/api/decks/create/:path*",
-    "/api/cards/favorite/:path*",
-    "/api/admin/:path*",
-    "/admin/:path*",
-  ],
+  matcher: ["/api/users/:path*", "/api/cards/:path*", "/api/decks/:path*", "/api/admin/:path*", "/admin/:path*"],
 }
 

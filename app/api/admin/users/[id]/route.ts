@@ -1,124 +1,69 @@
 import { type NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/db/mongodb"
-import { User } from "@/lib/db/models"
-import { withAdmin } from "@/lib/auth"
-import bcrypt from "bcrypt"
+import { User } from "@/lib/db/models/user.model"
+import bcryptjs from "bcryptjs"
 
-// 獲取單個用戶詳情
-async function getUser(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // 連接到數據庫
     await connectToDatabase()
+    const userId = params.id
 
-    const id = params.id
-
-    // 查找用戶
-    const user = await User.findById(id).select("-password")
-
+    const user = await User.findById(userId).select("-password")
     if (!user) {
-      return NextResponse.json({ error: "用戶不存在" }, { status: 404 })
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
     }
 
-    return NextResponse.json(user)
+    return NextResponse.json({ success: true, user })
   } catch (error) {
-    console.error("獲取用戶詳情錯誤:", error)
-    return NextResponse.json({ error: "獲取用戶詳情過程中發生錯誤" }, { status: 500 })
+    console.error("Error fetching user:", error)
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 })
   }
 }
 
-// 更新用戶
-async function updateUser(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    // 連接到數據庫
     await connectToDatabase()
+    const userId = params.id
+    const data = await request.json()
 
-    const id = params.id
-    const updateData = await req.json()
+    // 如果更新包含密碼，需要加密
+    if (data.password) {
+      const salt = await bcryptjs.genSalt(10)
+      data.password = await bcryptjs.hash(data.password, salt)
+    }
 
-    // 查找用戶
-    const user = await User.findById(id)
+    const user = await User.findByIdAndUpdate(userId, data, {
+      new: true,
+    }).select("-password")
 
     if (!user) {
-      return NextResponse.json({ error: "用戶不存在" }, { status: 404 })
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
     }
 
-    // 如果更新包含密碼，則需要加密
-    if (updateData.password) {
-      const salt = await bcrypt.genSalt(10)
-      updateData.password = await bcrypt.hash(updateData.password, salt)
-    }
+    return NextResponse.json({ success: true, user })
+  } catch (error) {
+    console.error("Error updating user:", error)
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 })
+  }
+}
 
-    // 更新用戶
-    const updatedUser = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true }).select("-password")
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await connectToDatabase()
+    const userId = params.id
+
+    const user = await User.findByIdAndDelete(userId)
+    if (!user) {
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 })
+    }
 
     return NextResponse.json({
-      message: "用戶更新成功",
-      user: updatedUser,
+      success: true,
+      message: "User deleted successfully",
     })
   } catch (error) {
-    console.error("更新用戶錯誤:", error)
-    return NextResponse.json({ error: "更新用戶過程中發生錯誤" }, { status: 500 })
+    console.error("Error deleting user:", error)
+    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 })
   }
 }
-
-// 部分更新用戶（例如狀態）
-async function patchUser(req: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    // 連接到數據庫
-    await connectToDatabase()
-
-    const id = params.id
-    const updateData = await req.json()
-
-    // 查找用戶
-    const user = await User.findById(id)
-
-    if (!user) {
-      return NextResponse.json({ error: "用戶不存在" }, { status: 404 })
-    }
-
-    // 更新用戶
-    const updatedUser = await User.findByIdAndUpdate(id, { $set: updateData }, { new: true }).select("-password")
-
-    return NextResponse.json({
-      message: "用戶更新成功",
-      user: updatedUser,
-    })
-  } catch (error) {
-    console.error("更新用戶錯誤:", error)
-    return NextResponse.json({ error: "更新用戶過程中發生錯誤" }, { status: 500 })
-  }
-}
-
-// 刪除用戶
-async function deleteUser(req: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    // 連接到數據庫
-    await connectToDatabase()
-
-    const id = params.id
-
-    // 查找用戶
-    const user = await User.findById(id)
-
-    if (!user) {
-      return NextResponse.json({ error: "用戶不存在" }, { status: 404 })
-    }
-
-    // 刪除用戶
-    await User.findByIdAndDelete(id)
-
-    return NextResponse.json({
-      message: "用戶刪除成功",
-    })
-  } catch (error) {
-    console.error("刪除用戶錯誤:", error)
-    return NextResponse.json({ error: "刪除用戶過程中發生錯誤" }, { status: 500 })
-  }
-}
-
-export const GET = withAdmin((req, { params }) => getUser(req, { params }))
-export const PUT = withAdmin((req, { params }) => updateUser(req, { params }))
-export const PATCH = withAdmin((req, { params }) => patchUser(req, { params }))
-export const DELETE = withAdmin((req, { params }) => deleteUser(req, { params }))
 
