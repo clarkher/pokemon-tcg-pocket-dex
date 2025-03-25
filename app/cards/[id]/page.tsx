@@ -1,134 +1,50 @@
-"use client"
-
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { ChevronLeft, Heart, Share2 } from "lucide-react"
-import { PokemonLogo } from "@/components/pokemon-logo"
-import { useAuth } from "@/lib/context/auth-context"
-import { useToast } from "@/hooks/use-toast"
-import { Skeleton } from "@/components/ui/skeleton"
+import { ChevronLeft } from "lucide-react"
 
-export default function CardDetailPage({ params }) {
-  const [card, setCard] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [isFavorite, setIsFavorite] = useState(false)
-  const { isAuthenticated, token } = useAuth()
-  const { toast } = useToast()
+// 模擬卡牌詳細數據
+const cardDetails = {
+  id: "1",
+  name: "皮卡丘",
+  nameEn: "Pikachu",
+  attribute: "雷",
+  rarity: "普通",
+  series: "基本系列",
+  expansion: "基本",
+  hp: 60,
+  type: "基本",
+  cardNumber: "58/102",
+  releaseDate: "1999-01-09",
+  imageUrl: "/placeholder.svg?height=400&width=286",
+  attacks: [
+    {
+      name: "電光一閃",
+      cost: ["無色"],
+      damage: "10",
+      description: "無特殊效果。",
+    },
+    {
+      name: "十萬伏特",
+      cost: ["雷", "雷", "無色"],
+      damage: "60",
+      description: "擲硬幣一次，如果是反面，則對自己造成30點傷害。",
+    },
+  ],
+  weaknesses: [
+    {
+      type: "格鬥",
+      value: "×2",
+    },
+  ],
+  retreatCost: 1,
+}
 
-  useEffect(() => {
-    fetchCardDetails()
-    if (isAuthenticated) {
-      checkIfFavorite()
-    }
-  }, [params.id, isAuthenticated])
-
-  const fetchCardDetails = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch(`/api/cards/${params.id}`)
-
-      if (!response.ok) {
-        throw new Error("獲取卡牌詳情失敗")
-      }
-
-      const data = await response.json()
-      setCard(data)
-    } catch (error) {
-      console.error("獲取卡牌詳情錯誤:", error)
-      toast({
-        title: "錯誤",
-        description: "獲取卡牌詳情失敗",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const checkIfFavorite = async () => {
-    try {
-      const response = await fetch(`/api/users/me/favorite-cards/${params.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setIsFavorite(data.isFavorite)
-      }
-    } catch (error) {
-      console.error("檢查收藏狀態錯誤:", error)
-    }
-  }
-
-  const toggleFavorite = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "請先登入",
-        description: "您需要登入才能收藏卡牌",
-        variant: "default",
-      })
-      return
-    }
-
-    try {
-      const action = isFavorite ? "unfavorite" : "favorite"
-
-      const response = await fetch(`/api/cards/${params.id}/favorite`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ action }),
-      })
-
-      if (!response.ok) {
-        throw new Error("操作失敗")
-      }
-
-      setIsFavorite(!isFavorite)
-
-      toast({
-        title: isFavorite ? "已取消收藏" : "已加入收藏",
-        description: isFavorite ? "卡牌已從收藏中移除" : "卡牌已加入您的收藏",
-        variant: "default",
-      })
-    } catch (error) {
-      console.error("收藏操作錯誤:", error)
-      toast({
-        title: "操作失敗",
-        description: "無法完成收藏操作，請稍後再試",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const shareCard = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: card?.name,
-        text: `查看寶可夢卡牌：${card?.name}`,
-        url: window.location.href,
-      })
-    } else {
-      // 複製連結到剪貼簿
-      navigator.clipboard.writeText(window.location.href)
-      toast({
-        title: "連結已複製",
-        description: "卡牌連結已複製到剪貼簿",
-        variant: "default",
-      })
-    }
-  }
-
-  const getAttributeColor = (attribute) => {
-    const colors = {
+export default function CardDetailPage({ params }: { params: { id: string } }) {
+  const getAttributeColor = (attribute: string) => {
+    const colors: Record<string, string> = {
       雷: "yellow",
       火: "destructive",
       水: "blue",
@@ -142,9 +58,9 @@ export default function CardDetailPage({ params }) {
     return colors[attribute] || "default"
   }
 
-  const getEnergyCost = (cost) => {
+  const getEnergyCost = (cost: string[]) => {
     return cost.map((energy, index) => (
-      <Badge key={index} variant={getAttributeColor(energy)} className="mr-1">
+      <Badge key={index} variant={getAttributeColor(energy) as any} className="mr-1">
         {energy}
       </Badge>
     ))
@@ -155,9 +71,8 @@ export default function CardDetailPage({ params }) {
       <header className="sticky top-0 z-40 border-b bg-background">
         <div className="container flex h-16 items-center justify-between py-4">
           <div className="flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2">
-              <PokemonLogo className="h-8 w-8" />
-              <span className="text-xl font-bold">寶可夢集換式卡牌資料庫</span>
+            <Link href="/" className="text-xl font-bold">
+              寶可夢集換式卡牌資料庫
             </Link>
           </div>
           <nav className="flex items-center gap-4">
@@ -187,135 +102,97 @@ export default function CardDetailPage({ params }) {
             <h1 className="text-3xl font-bold tracking-tight">卡牌詳情</h1>
           </div>
 
-          {loading ? (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="flex justify-center">
-                <Skeleton className="aspect-[2/3] w-full max-w-[350px] rounded-lg" />
-              </div>
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-8 w-[200px]" />
-                  <Skeleton className="h-6 w-[80px]" />
-                </div>
-                <Skeleton className="h-[200px] w-full rounded-lg" />
-                <Skeleton className="h-[150px] w-full rounded-lg" />
-                <Skeleton className="h-[100px] w-full rounded-lg" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="flex justify-center">
+              <div className="relative aspect-[2/3] w-full max-w-[350px] overflow-hidden rounded-lg">
+                <Image
+                  src={cardDetails.imageUrl || "/placeholder.svg"}
+                  alt={cardDetails.name}
+                  fill
+                  className="object-contain"
+                />
               </div>
             </div>
-          ) : card ? (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="flex justify-center">
-                <div className="relative aspect-[2/3] w-full max-w-[350px] overflow-hidden rounded-lg">
-                  <Image
-                    src={card.imageUrl || "/placeholder.svg?height=400&width=286"}
-                    alt={card.name}
-                    fill
-                    className="object-contain"
-                  />
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">{cardDetails.name}</h2>
+                  <p className="text-muted-foreground">{cardDetails.nameEn}</p>
                 </div>
+                <Badge variant={getAttributeColor(cardDetails.attribute) as any} className="text-lg">
+                  {cardDetails.attribute}
+                </Badge>
               </div>
 
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{card.name}</h2>
-                    <p className="text-muted-foreground">{card.nameEn}</p>
-                  </div>
-                  <Badge variant={getAttributeColor(card.attribute)} className="text-lg">
-                    {card.attribute}
-                  </Badge>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" className="gap-2" onClick={toggleFavorite}>
-                    <Heart className={`h-4 w-4 ${isFavorite ? "fill-red-500 text-red-500" : ""}`} />
-                    {isFavorite ? "已收藏" : "收藏"}
-                  </Button>
-                  <Button variant="outline" className="gap-2" onClick={shareCard}>
-                    <Share2 className="h-4 w-4" />
-                    分享
-                  </Button>
-                </div>
-
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">HP</p>
-                        <p className="font-medium">{card.hp}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">類型</p>
-                        <p className="font-medium">{card.type}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">稀有度</p>
-                        <p className="font-medium">{card.rarity}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">系列</p>
-                        <p className="font-medium">{card.series}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">擴充包</p>
-                        <p className="font-medium">{card.expansion}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">卡牌編號</p>
-                        <p className="font-medium">{card.cardNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">發行日期</p>
-                        <p className="font-medium">{new Date(card.releaseDate).toLocaleDateString()}</p>
-                      </div>
-                      {card.retreatCost !== undefined && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">撤退消耗</p>
-                          <p className="font-medium">{card.retreatCost} 能量</p>
-                        </div>
-                      )}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">HP</p>
+                      <p className="font-medium">{cardDetails.hp}</p>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {card.attacks && card.attacks.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold">招式</h3>
-                    {card.attacks.map((attack, index) => (
-                      <Card key={index}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-semibold">{attack.name}</h4>
-                            <div className="flex items-center">{getEnergyCost(attack.cost)}</div>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between">
-                            <p className="text-sm">{attack.description}</p>
-                            <p className="font-bold">{attack.damage}</p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    <div>
+                      <p className="text-sm text-muted-foreground">類型</p>
+                      <p className="font-medium">{cardDetails.type}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">稀有度</p>
+                      <p className="font-medium">{cardDetails.rarity}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">系列</p>
+                      <p className="font-medium">{cardDetails.series}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">擴充包</p>
+                      <p className="font-medium">{cardDetails.expansion}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">卡牌編號</p>
+                      <p className="font-medium">{cardDetails.cardNumber}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">發行日期</p>
+                      <p className="font-medium">{cardDetails.releaseDate}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">撤退消耗</p>
+                      <p className="font-medium">{cardDetails.retreatCost} 能量</p>
+                    </div>
                   </div>
-                )}
+                </CardContent>
+              </Card>
 
-                {card.weaknesses && card.weaknesses.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold">弱點</h3>
-                    {card.weaknesses.map((weakness, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <Badge variant={getAttributeColor(weakness.type)}>{weakness.type}</Badge>
-                        <span>{weakness.value}</span>
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold">招式</h3>
+                {cardDetails.attacks.map((attack, index) => (
+                  <Card key={index}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold">{attack.name}</h4>
+                        <div className="flex items-center">{getEnergyCost(attack.cost)}</div>
                       </div>
-                    ))}
+                      <div className="mt-2 flex items-center justify-between">
+                        <p className="text-sm">{attack.description}</p>
+                        <p className="font-bold">{attack.damage}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold">弱點</h3>
+                {cardDetails.weaknesses.map((weakness, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Badge variant={getAttributeColor(weakness.type) as any}>{weakness.type}</Badge>
+                    <span>{weakness.value}</span>
                   </div>
-                )}
+                ))}
               </div>
             </div>
-          ) : (
-            <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
-              <p className="text-center text-muted-foreground">找不到卡牌</p>
-            </div>
-          )}
+          </div>
         </div>
       </main>
       <footer className="border-t py-6 md:py-0">

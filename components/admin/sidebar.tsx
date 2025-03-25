@@ -5,18 +5,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { PokemonLogo } from "@/components/pokemon-logo"
-import {
-  LayoutDashboard,
-  CreditCard,
-  Users,
-  Calendar,
-  Settings,
-  LogOut,
-  FolderKanban,
-  MessageSquare,
-  BarChart,
-} from "lucide-react"
-import { useAuth } from "@/lib/context/auth-context"
+import { LayoutDashboard, CreditCard, Users, Calendar, Settings, LogOut, FolderKanban } from "lucide-react"
 
 const sidebarItems = [
   {
@@ -45,16 +34,6 @@ const sidebarItems = [
     icon: Users,
   },
   {
-    title: "論壇管理",
-    href: "/admin/forum",
-    icon: MessageSquare,
-  },
-  {
-    title: "數據統計",
-    href: "/admin/analytics",
-    icon: BarChart,
-  },
-  {
     title: "系統設置",
     href: "/admin/settings",
     icon: Settings,
@@ -63,12 +42,6 @@ const sidebarItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { logout } = useAuth()
-
-  const handleLogout = () => {
-    logout()
-    window.location.href = "/"
-  }
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-muted/40">
@@ -99,7 +72,7 @@ export function Sidebar() {
         </nav>
       </div>
       <div className="mt-auto p-4">
-        <Button variant="outline" className="w-full justify-start gap-2" onClick={handleLogout}>
+        <Button variant="outline" className="w-full justify-start gap-2">
           <LogOut className="h-4 w-4" />
           登出
         </Button>

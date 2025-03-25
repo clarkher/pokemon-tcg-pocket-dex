@@ -1,6 +1,7 @@
-import { googleAuth } from "@/lib/api/routes/auth"
+import type { NextRequest } from "next/server"
+import { googleLogin } from "@/lib/api/routes/auth"
 
-export async function GET(req: Request) {
-  return googleAuth(req)
+export async function POST(req: NextRequest) {
+  return googleLogin(req)
 }
 
