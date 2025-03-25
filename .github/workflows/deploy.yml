@@ -20,17 +20,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'  # 添加 npm 緩存
-
-      - name: Check Node and npm version  # 添加檢查步驟
-        run: |
-          node --version
-          npm --version
+          cache: 'npm'
 
       - name: Install Dependencies
-        run: |
-          which npm
-          npm install
+        run: npm install
 
       - name: Build
         run: npm run build
@@ -39,4 +32,4 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build
+          publish_dir: dist  # Vite 的輸出目錄是 dist
