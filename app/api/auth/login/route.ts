@@ -1,7 +1,6 @@
-import type { NextRequest } from "next/server"
-import { login } from "@/lib/api/routes/auth"
+import { loginUser } from "@/lib/api/routes/auth"
 
-export async function POST(req: NextRequest) {
-  return login(req)
+export async function POST(req: Request) {
+  return loginUser(req)
 }
 

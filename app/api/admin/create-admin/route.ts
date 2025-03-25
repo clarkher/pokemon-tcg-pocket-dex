@@ -1,29 +1,36 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import connectToDatabase from "@/lib/db/mongodb"
+import { User } from "@/lib/db/models"
 import bcrypt from "bcryptjs"
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const { email, password } = await req.json()
+    await connectToDatabase()
 
-    if (!email || !password) {
-      return new NextResponse("Missing email or password", { status: 400 })
+    // 檢查是否已存在管理員
+    const existingAdmin = await User.findOne({ isAdmin: true })
+    if (existingAdmin) {
+      return NextResponse.json({ success: false, message: "Admin already exists" }, { status: 400 })
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12)
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        hashedPassword,
-        role: "ADMIN",
-      },
+    // 創建管理員帳戶
+    const hashedPassword = await bcrypt.hash("admin123", 10)
+    const admin = new User({
+      username: "admin",
+      email: "admin@example.com",
+      password: hashedPassword,
+      isAdmin: true,
     })
 
-    return NextResponse.json(user)
-  } catch (error: any) {
-    console.error("ADMIN_CREATE", error)
-    return new NextResponse("Internal error", { status: 500 })
+    await admin.save()
+
+    return NextResponse.json({
+      success: true,
+      message: "Admin account created successfully",
+    })
+  } catch (error) {
+    console.error("Error creating admin:", error)
+    return NextResponse.json({ success: false, message: "Failed to create admin account" }, { status: 500 })
   }
 }
 
