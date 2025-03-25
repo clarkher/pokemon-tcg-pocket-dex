@@ -20,18 +20,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'  # 添加 npm 緩存
+
+      - name: Check Node and npm version  # 添加檢查步驟
+        run: |
+          node --version
+          npm --version
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          which npm
+          npm install
 
       - name: Build
         run: npm run build
-
-      - name: List directory content  # 添加這個步驟來檢查構建輸出
-        run: ls -la
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: dist  # 移除 ./
+          publish_dir: build
