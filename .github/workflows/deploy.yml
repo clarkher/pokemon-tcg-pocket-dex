@@ -4,45 +4,31 @@ on:
   push:
     branches: ['main']
 
-# 設定權限
 permissions:
   contents: write
   pages: write
   id-token: write
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # 添加這行
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          
-      - name: Install dependencies
+
+      - name: Install Dependencies
         run: npm install
-        
+
       - name: Build
         run: npm run build
-        
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-        
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: './dist'
-          
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
