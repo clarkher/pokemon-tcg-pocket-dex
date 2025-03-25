@@ -27,8 +27,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: List directory content  # 添加這個步驟來檢查構建輸出
+        run: ls -la
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: dist  # 移除 ./
