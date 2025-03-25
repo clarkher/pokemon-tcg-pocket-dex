@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken"
-import bcrypt from "bcryptjs"
+import bcryptjs from "bcryptjs"
 import { type NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/db/mongodb"
 import { User } from "@/lib/db/models"
@@ -38,7 +38,7 @@ export async function loginUser(req: NextRequest) {
     }
 
     // 驗證密碼
-    const isMatch = await bcrypt.compare(password, user.password)
+    const isMatch = await bcryptjs.compare(password, user.password)
     if (!isMatch) {
       return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 })
     }

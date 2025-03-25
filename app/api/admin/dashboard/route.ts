@@ -1,98 +1,78 @@
 import { type NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/db/mongodb"
 import { User, Card, Deck, Event, Post } from "@/lib/db/models"
-import { withAdmin } from "@/lib/auth"
 
-async function getDashboardData(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // 連接到數據庫
+    console.log("Admin dashboard API called")
+
+    // 連接數據庫
     await connectToDatabase()
+    console.log("Database connected")
 
-    // 獲取各種統計數據
-    const usersCount = await User.countDocuments()
-    const cardsCount = await Card.countDocuments()
-    const decksCount = await Deck.countDocuments()
-    const eventsCount = await Event.countDocuments()
-    const postsCount = await Post.countDocuments()
+    // 獲取用戶總數
+    const totalUsers = await User.countDocuments()
+    console.log("Total users:", totalUsers)
 
-    // 獲取活躍用戶數（過去30天有登入的用戶）
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    // 獲取卡牌總數
+    const totalCards = await Card.countDocuments()
+    console.log("Total cards:", totalCards)
 
-    const activeUsersCount = await User.countDocuments({
-      lastLogin: { $gte: thirtyDaysAgo },
-    })
+    // 獲取牌組總數
+    const totalDecks = await Deck.countDocuments()
+    console.log("Total decks:", totalDecks)
 
-    // 獲取進行中的活動數
-    const activeEventsCount = await Event.countDocuments({
-      status: "active",
-    })
+    // 獲取活動總數
+    const totalEvents = await Event.countDocuments()
+    console.log("Total events:", totalEvents)
+
+    // 獲取帖子總數
+    const totalPosts = await Post.countDocuments()
+    console.log("Total posts:", totalPosts)
 
     // 獲取最近註冊的用戶
-    const recentUsers = await User.find().select("username avatar createdAt").sort({ createdAt: -1 }).limit(5)
+    const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5).select("username email avatar createdAt")
+    console.log("Recent users fetched")
+
+    // 獲取最近創建的活動
+    const recentEvents = await Event.find().sort({ createdAt: -1 }).limit(5).populate("organizer", "username avatar")
+    console.log("Recent events fetched")
 
     // 獲取最近創建的牌組
-    const recentDecks = await Deck.find()
-      .select("name mainEnergy createdAt")
-      .populate("createdBy", "username")
-      .sort({ createdAt: -1 })
-      .limit(5)
+    const recentDecks = await Deck.find().sort({ createdAt: -1 }).limit(5).populate("author", "username avatar")
+    console.log("Recent decks fetched")
 
     // 獲取最近創建的卡牌
-    const recentCards = await Card.find().select("name attribute rarity createdAt").sort({ createdAt: -1 }).limit(5)
+    const recentCards = await Card.find().sort({ createdAt: -1 }).limit(5)
+    console.log("Recent cards fetched")
 
-    // 獲取月度統計數據（過去6個月）
-    const monthlyStats = []
-    const now = new Date()
-
-    for (let i = 5; i >= 0; i--) {
-      const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-
-      const monthName = month.toLocaleString("zh-TW", { month: "long" })
-
-      const newUsers = await User.countDocuments({
-        createdAt: { $gte: month, $lt: nextMonth },
-      })
-
-      const newCards = await Card.countDocuments({
-        createdAt: { $gte: month, $lt: nextMonth },
-      })
-
-      const newDecks = await Deck.countDocuments({
-        createdAt: { $gte: month, $lt: nextMonth },
-      })
-
-      monthlyStats.push({
-        name: monthName,
-        users: newUsers,
-        cards: newCards,
-        decks: newDecks,
-      })
-    }
-
+    // 返回數據
     return NextResponse.json({
-      counts: {
-        users: usersCount,
-        activeUsers: activeUsersCount,
-        cards: cardsCount,
-        decks: decksCount,
-        events: eventsCount,
-        activeEvents: activeEventsCount,
-        posts: postsCount,
+      success: true,
+      data: {
+        stats: {
+          totalUsers,
+          totalCards,
+          totalDecks,
+          totalEvents,
+          totalPosts,
+        },
+        recentUsers,
+        recentEvents,
+        recentDecks,
+        recentCards,
       },
-      recent: {
-        users: recentUsers,
-        decks: recentDecks,
-        cards: recentCards,
-      },
-      monthlyStats,
     })
   } catch (error) {
-    console.error("獲取儀表板數據錯誤:", error)
-    return NextResponse.json({ error: "獲取儀表板數據過程中發生錯誤" }, { status: 500 })
+    console.error("Admin dashboard error:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Server error",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
   }
 }
-
-export const GET = withAdmin(getDashboardData)
 

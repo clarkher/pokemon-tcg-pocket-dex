@@ -1,5 +1,5 @@
-import mongoose, { Schema, type Document, type Model } from "mongoose"
-import bcrypt from "bcryptjs"
+import mongoose, { Schema, type Document } from "mongoose"
+import bcryptjs from "bcryptjs"
 
 export interface IUser extends Document {
   username: string
@@ -17,7 +17,7 @@ export interface IUser extends Document {
   status: "active" | "inactive" | "banned"
   followers: mongoose.Types.ObjectId[]
   following: mongoose.Types.ObjectId[]
-  favoriteCards: mongoose.Types.ObjectId[] // 新增收藏卡牌字段
+  favoriteCards: mongoose.Types.ObjectId[]
   comparePassword(candidatePassword: string): Promise<boolean>
 }
 
@@ -40,7 +40,7 @@ const UserSchema: Schema = new Schema(
     },
     followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    favoriteCards: [{ type: Schema.Types.ObjectId, ref: "Card" }], // 新增收藏卡牌字段
+    favoriteCards: [{ type: Schema.Types.ObjectId, ref: "Card" }],
   },
   {
     timestamps: true,
@@ -52,8 +52,8 @@ UserSchema.pre<IUser>("save", async function (next) {
   if (!this.isModified("password")) return next()
 
   try {
-    const salt = await bcrypt.genSalt(10)
-    this.password = await bcrypt.hash(this.password, salt)
+    const salt = await bcryptjs.genSalt(10)
+    this.password = await bcryptjs.hash(this.password, salt)
     next()
   } catch (error: any) {
     next(error)
@@ -62,11 +62,11 @@ UserSchema.pre<IUser>("save", async function (next) {
 
 // 比較密碼方法
 UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password)
+  return bcryptjs.compare(candidatePassword, this.password)
 }
 
 // 避免 Mongoose 模型重複定義錯誤
-const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", UserSchema)
+const User = mongoose.models.User || mongoose.model<IUser>("User", UserSchema)
 
 export default User
 
