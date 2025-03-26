@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,37 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState("")
   const router = useRouter()
+
+  // 檢查是否已登錄
+  useEffect(() => {
+    const token = localStorage.getItem("adminToken")
+    if (token) {
+      router.push("/admin")
+    }
+  }, [router])
+
+  // 初始化管理員帳戶
+  useEffect(() => {
+    const initAdmin = async () => {
+      try {
+        const response = await fetch("/api/init-admin")
+        const data = await response.json()
+        if (data.success) {
+          setMessage(data.message)
+          if (data.message === "Admin created successfully") {
+            setEmail("admin@example.com")
+            setPassword("admin123")
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing admin:", error)
+      }
+    }
+
+    initAdmin()
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -61,6 +91,11 @@ export default function AdminLoginPage() {
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {message && (
+              <Alert className="mb-4">
+                <AlertDescription>{message}</AlertDescription>
               </Alert>
             )}
             <div className="space-y-4">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,14 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  // 檢查是否已登錄
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (token) {
+      router.push("/")
+    }
+  }, [router])
 
   const handleChange = (e) => {
     const { name, value } = e.target

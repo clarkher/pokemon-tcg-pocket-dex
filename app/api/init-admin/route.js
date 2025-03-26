@@ -4,32 +4,44 @@ import bcryptjs from "bcryptjs"
 
 export async function GET() {
   try {
+    console.log("Initializing admin account...")
+
     // 連接數據庫
     await connectToDatabase()
+    console.log("Database connected")
 
-    // 動態導入 User 模型
-    const { User } = require("@/lib/db/models")
+    // 動態導入模型
+    const models = require("@/lib/db/models")
+    const User = models.User
+
+    if (!User) {
+      console.error("User model not found")
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User model not found",
+        },
+        { status: 500 },
+      )
+    }
 
     // 檢查是否已存在管理員
-    const adminExists = await User.findOne({ isAdmin: true })
-
-    if (adminExists) {
+    const existingAdmin = await User.findOne({ isAdmin: true })
+    if (existingAdmin) {
+      console.log("Admin already exists")
       return NextResponse.json({
         success: true,
-        message: "Admin account already exists",
+        message: "Admin already exists",
         admin: {
-          id: adminExists._id,
-          email: adminExists.email,
-          username: adminExists.username,
+          username: existingAdmin.username,
+          email: existingAdmin.email,
+          id: existingAdmin._id,
         },
       })
     }
 
-    // 創建管理員密碼
-    const salt = await bcryptjs.genSalt(10)
-    const hashedPassword = await bcryptjs.hash("admin123", salt)
-
     // 創建管理員帳戶
+    const hashedPassword = await bcryptjs.hash("admin123", 10)
     const admin = new User({
       username: "admin",
       email: "admin@example.com",
@@ -38,19 +50,19 @@ export async function GET() {
     })
 
     await admin.save()
+    console.log("Admin created successfully")
 
-    // 返回成功響應
     return NextResponse.json({
       success: true,
-      message: "Admin account created successfully",
+      message: "Admin created successfully",
       admin: {
-        id: admin._id,
-        email: admin.email,
         username: admin.username,
+        email: admin.email,
+        id: admin._id,
       },
     })
   } catch (error) {
-    console.error("Init admin error:", error)
+    console.error("Error creating admin:", error)
     return NextResponse.json(
       {
         success: false,

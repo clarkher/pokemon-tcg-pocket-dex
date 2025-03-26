@@ -7,7 +7,6 @@ export async function POST(req) {
   try {
     const { email, password } = await req.json()
 
-    // 驗證輸入
     if (!email || !password) {
       return NextResponse.json(
         {
@@ -21,36 +20,36 @@ export async function POST(req) {
     // 連接數據庫
     await connectToDatabase()
 
-    // 動態導入 User 模型
-    const { User } = require("@/lib/db/models")
+    // 動態導入模型
+    const models = require("@/lib/db/models")
+    const User = models.User
+
+    if (!User) {
+      console.error("User model not found")
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User model not found",
+        },
+        { status: 500 },
+      )
+    }
 
     // 查找用戶
     const user = await User.findOne({ email })
 
-    if (!user) {
+    if (!user || !user.isAdmin) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid credentials",
+          message: "Invalid credentials or not an admin",
         },
         { status: 401 },
       )
     }
 
-    // 檢查是否為管理員
-    if (!user.isAdmin) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Admin access required",
-        },
-        { status: 403 },
-      )
-    }
-
     // 驗證密碼
     const isMatch = await bcryptjs.compare(password, user.password)
-
     if (!isMatch) {
       return NextResponse.json(
         {
@@ -61,7 +60,11 @@ export async function POST(req) {
       )
     }
 
-    // 創建 JWT
+    // 更新最後登錄時間
+    user.lastLogin = new Date()
+    await user.save()
+
+    // 生成 JWT
     const token = jwt.sign(
       {
         userId: user._id,
@@ -69,16 +72,14 @@ export async function POST(req) {
         username: user.username,
         isAdmin: user.isAdmin,
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || "fallback_secret",
       { expiresIn: "7d" },
     )
 
-    // 返回成功響應
     return NextResponse.json({
       success: true,
-      message: "Login successful",
       token,
-      user: {
+      admin: {
         id: user._id,
         username: user.username,
         email: user.email,
@@ -90,7 +91,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message: "Login failed",
+        message: "Server error",
         error: error.message,
       },
       { status: 500 },

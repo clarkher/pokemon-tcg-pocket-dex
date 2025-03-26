@@ -9,14 +9,16 @@ export async function GET() {
     // 動態導入模型
     const models = require("@/lib/db/models")
 
-    // 返回成功響應
+    // 檢查模型是否存在
+    const modelNames = Object.keys(models)
+
     return NextResponse.json({
       success: true,
       message: "Database connection successful",
-      models: Object.keys(models),
+      models: modelNames,
     })
   } catch (error) {
-    console.error("Test DB error:", error)
+    console.error("Database test error:", error)
     return NextResponse.json(
       {
         success: false,
