@@ -1,116 +1,22 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Heart } from "lucide-react"
+import { useAuth } from "@/lib/context/auth-context"
+import { useToast } from "@/hooks/use-toast"
 
-// 卡牌模擬數據
-const cards = [
-  {
-    id: "1",
-    name: "皮卡丘",
-    nameEn: "Pikachu",
-    attribute: "雷",
-    rarity: "普通",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "58/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "2",
-    name: "噴火龍",
-    nameEn: "Charizard",
-    attribute: "火",
-    rarity: "稀有閃卡",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "4/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "3",
-    name: "水箭龜",
-    nameEn: "Blastoise",
-    attribute: "水",
-    rarity: "稀有閃卡",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "2/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "4",
-    name: "妙蛙花",
-    nameEn: "Venusaur",
-    attribute: "草",
-    rarity: "稀有閃卡",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "15/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "5",
-    name: "超夢",
-    nameEn: "Mewtwo",
-    attribute: "超能",
-    rarity: "稀有閃卡",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "10/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "6",
-    name: "快龍",
-    nameEn: "Dragonite",
-    attribute: "無色",
-    rarity: "稀有閃卡",
-    series: "化石",
-    expansion: "化石",
-    cardNumber: "4/62",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "7",
-    name: "暴鯉龍",
-    nameEn: "Gyarados",
-    attribute: "水",
-    rarity: "稀有閃卡",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "6/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "8",
-    name: "三頭地鼠",
-    nameEn: "Dugtrio",
-    attribute: "格鬥",
-    rarity: "稀有",
-    series: "基本系列",
-    expansion: "基本",
-    cardNumber: "19/102",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-  {
-    id: "9",
-    name: "耿鬼",
-    nameEn: "Gengar",
-    attribute: "超能",
-    rarity: "稀有閃卡",
-    series: "化石",
-    expansion: "化石",
-    cardNumber: "5/62",
-    imageUrl: "/placeholder.svg?height=300&width=215",
-  },
-]
+export function CardGrid({ cards }) {
+  const { isAuthenticated, token } = useAuth()
+  const { toast } = useToast()
+  const [favorites, setFavorites] = useState({})
 
-export function CardGrid() {
-  const getAttributeColor = (attribute: string) => {
-    const colors: Record<string, string> = {
+  const getAttributeColor = (attribute) => {
+    const colors = {
       雷: "yellow",
       火: "destructive",
       水: "blue",
@@ -124,27 +30,96 @@ export function CardGrid() {
     return colors[attribute] || "default"
   }
 
+  const toggleFavorite = async (e, cardId) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!isAuthenticated) {
+      toast({
+        title: "請先登入",
+        description: "您需要登入才能收藏卡牌",
+        variant: "default",
+      })
+      return
+    }
+
+    try {
+      const isFavorite = favorites[cardId]
+      const action = isFavorite ? "unfavorite" : "favorite"
+
+      const response = await fetch(`/api/cards/${cardId}/favorite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      })
+
+      if (!response.ok) {
+        throw new Error("操作失敗")
+      }
+
+      setFavorites({
+        ...favorites,
+        [cardId]: !isFavorite,
+      })
+
+      toast({
+        title: isFavorite ? "已取消收藏" : "已加入收藏",
+        description: isFavorite ? "卡牌已從收藏中移除" : "卡牌已加入您的收藏",
+        variant: "default",
+      })
+    } catch (error) {
+      console.error("收藏操作錯誤:", error)
+      toast({
+        title: "操作失敗",
+        description: "無法完成收藏操作，請稍後再試",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Link key={card.id} href={`/cards/${card.id}`}>
-          <Card className="overflow-hidden transition-all hover:shadow-md">
-            <div className="relative aspect-[2/3] w-full overflow-hidden">
-              <Image src={card.imageUrl || "/placeholder.svg"} alt={card.name} fill className="object-cover" />
-            </div>
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{card.name}</h3>
-                <Badge variant={getAttributeColor(card.attribute) as any}>{card.attribute}</Badge>
+      {cards.length === 0 ? (
+        <div className="col-span-full flex h-40 items-center justify-center rounded-md border border-dashed">
+          <p className="text-center text-muted-foreground">沒有找到符合條件的卡牌</p>
+        </div>
+      ) : (
+        cards.map((card) => (
+          <Link key={card._id} href={`/cards/${card._id}`}>
+            <Card className="overflow-hidden transition-all hover:shadow-md">
+              <div className="relative aspect-[2/3] w-full overflow-hidden">
+                <Image
+                  src={card.imageUrl || "/placeholder.svg?height=300&width=215"}
+                  alt={card.name}
+                  fill
+                  className="object-cover"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm"
+                  onClick={(e) => toggleFavorite(e, card._id)}
+                >
+                  <Heart className={`h-4 w-4 ${favorites[card._id] ? "fill-red-500 text-red-500" : ""}`} />
+                </Button>
               </div>
-            </CardContent>
-            <CardFooter className="flex justify-between p-3 pt-0 text-xs text-muted-foreground">
-              <span>{card.series}</span>
-              <span>{card.cardNumber}</span>
-            </CardFooter>
-          </Card>
-        </Link>
-      ))}
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">{card.name}</h3>
+                  <Badge variant={getAttributeColor(card.attribute)}>{card.attribute}</Badge>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between p-3 pt-0 text-xs text-muted-foreground">
+                <span>{card.series}</span>
+                <span>{card.cardNumber}</span>
+              </CardFooter>
+            </Card>
+          </Link>
+        ))
+      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -18,11 +18,10 @@ import { ChevronLeft, Search, Plus, X, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
 
-export default function NewDeckPage() {
+export default function EditDeckPage({ params }) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const cloneId = searchParams.get("clone")
-  const { isAuthenticated, token } = useAuth()
+  const deckId = params.id
+  const { isAuthenticated, token, user } = useAuth()
   const { toast } = useToast()
 
   const [deckInfo, setDeckInfo] = useState({
@@ -50,29 +49,32 @@ export default function NewDeckPage() {
 
   const [isSearching, setIsSearching] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [deckCreator, setDeckCreator] = useState(null)
 
-  // 如果有 cloneId，則獲取牌組數據
   useEffect(() => {
-    if (cloneId) {
-      fetchDeckToClone()
-    }
-
     // 檢查用戶是否已登入
     if (!isAuthenticated) {
       toast({
         title: "請先登入",
-        description: "您需要登入才能創建牌組",
+        description: "您需要登入才能編輯牌組",
         variant: "default",
       })
-      router.push("/login?redirect=/decks/new")
+      router.push(`/login?redirect=/decks/${deckId}/edit`)
+      return
     }
-  }, [cloneId, isAuthenticated])
 
-  const fetchDeckToClone = async () => {
+    fetchDeckDetails()
+  }, [deckId, isAuthenticated])
+
+  const fetchDeckDetails = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`/api/decks/${cloneId}`)
+      const response = await fetch(`/api/decks/${deckId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
 
       if (!response.ok) {
         throw new Error("獲取牌組失敗")
@@ -80,9 +82,21 @@ export default function NewDeckPage() {
 
       const deck = await response.json()
 
+      // 檢查是否是牌組創建者
+      setDeckCreator(deck.creator)
+      if (deck.creator._id !== user?.id) {
+        toast({
+          title: "無權限",
+          description: "您沒有權限編輯此牌組",
+          variant: "destructive",
+        })
+        router.push(`/decks/${deckId}`)
+        return
+      }
+
       // 設置牌組信息
       setDeckInfo({
-        name: `${deck.name} (複製)`,
+        name: deck.name || "",
         description: deck.description || "",
         isPublic: deck.isPublic,
         mainEnergy: deck.mainEnergy[0] || "",
@@ -110,9 +124,10 @@ export default function NewDeckPage() {
       console.error("獲取牌組錯誤:", error)
       toast({
         title: "錯誤",
-        description: "無法獲取要複製的牌組",
+        description: "無法獲取牌組詳情",
         variant: "destructive",
       })
+      router.push(`/decks/${deckId}`)
     } finally {
       setIsLoading(false)
     }
@@ -248,7 +263,7 @@ export default function NewDeckPage() {
     return labels[type] || type
   }
 
-  const handleSaveDeck = async () => {
+  const handleUpdateDeck = async () => {
     if (deckInfo.name.trim() === "") {
       toast({
         title: "請輸入牌組名稱",
@@ -295,8 +310,8 @@ export default function NewDeckPage() {
           .map(([type, count]) => ({ type, count })),
       }
 
-      const response = await fetch("/api/decks", {
-        method: "POST",
+      const response = await fetch(`/api/decks/${deckId}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -305,24 +320,22 @@ export default function NewDeckPage() {
       })
 
       if (!response.ok) {
-        throw new Error("創建牌組失敗")
+        throw new Error("更新牌組失敗")
       }
 
-      const data = await response.json()
-
       toast({
-        title: "牌組創建成功",
-        description: "您的牌組已成功創建",
+        title: "牌組更新成功",
+        description: "您的牌組已成功更新",
         variant: "default",
       })
 
-      // 導航到新創建的牌組頁面
-      router.push(`/decks/${data.deck._id}`)
+      // 導航回牌組頁面
+      router.push(`/decks/${deckId}`)
     } catch (error) {
-      console.error("創建牌組錯誤:", error)
+      console.error("更新牌組錯誤:", error)
       toast({
         title: "錯誤",
-        description: "創建牌組失敗，請稍後再試",
+        description: "更新牌組失敗，請稍後再試",
         variant: "destructive",
       })
     } finally {
@@ -381,12 +394,12 @@ export default function NewDeckPage() {
       <main className="flex-1">
         <div className="container py-6">
           <div className="mb-6 flex items-center gap-2">
-            <Link href="/decks">
+            <Link href={`/decks/${deckId}`}>
               <Button variant="outline" size="icon">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold tracking-tight">創建新牌組</h1>
+            <h1 className="text-3xl font-bold tracking-tight">編輯牌組</h1>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -467,7 +480,7 @@ export default function NewDeckPage() {
                     </div>
                     <Button
                       className="w-full"
-                      onClick={handleSaveDeck}
+                      onClick={handleUpdateDeck}
                       disabled={
                         isSubmitting ||
                         getTotalCardCount() !== 60 ||
@@ -478,10 +491,10 @@ export default function NewDeckPage() {
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          保存中...
+                          更新中...
                         </>
                       ) : (
-                        "保存牌組"
+                        "更新牌組"
                       )}
                     </Button>
                   </div>

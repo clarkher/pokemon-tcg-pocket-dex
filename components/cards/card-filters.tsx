@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -31,7 +31,7 @@ const rarities = [
 ]
 
 // 系列選項
-const series = [
+const seriesOptions = [
   { id: "base", label: "基本系列" },
   { id: "jungle", label: "幻遊島" },
   { id: "fossil", label: "化石" },
@@ -50,13 +50,24 @@ const expansions = [
   { id: "giratina", label: "騎拉帝納" },
 ]
 
-export function CardFilters() {
-  const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
-  const [selectedRarities, setSelectedRarities] = useState<string[]>([])
-  const [selectedSeries, setSelectedSeries] = useState<string[]>([])
-  const [selectedExpansions, setSelectedExpansions] = useState<string[]>([])
+export function CardFilters({ filters, onFilterChange }) {
+  const [selectedAttributes, setSelectedAttributes] = useState(filters.attribute || [])
+  const [selectedRarities, setSelectedRarities] = useState(filters.rarity || [])
+  const [selectedSeries, setSelectedSeries] = useState(filters.series || [])
+  const [selectedExpansions, setSelectedExpansions] = useState(filters.expansion || [])
 
-  const handleAttributeChange = (id: string, checked: boolean) => {
+  // 當選擇變更時更新父組件
+  useEffect(() => {
+    const newFilters = {
+      attribute: selectedAttributes,
+      rarity: selectedRarities,
+      series: selectedSeries,
+      expansion: selectedExpansions,
+    }
+    onFilterChange(newFilters)
+  }, [selectedAttributes, selectedRarities, selectedSeries, selectedExpansions])
+
+  const handleAttributeChange = (id, checked) => {
     if (checked) {
       setSelectedAttributes([...selectedAttributes, id])
     } else {
@@ -64,7 +75,7 @@ export function CardFilters() {
     }
   }
 
-  const handleRarityChange = (id: string, checked: boolean) => {
+  const handleRarityChange = (id, checked) => {
     if (checked) {
       setSelectedRarities([...selectedRarities, id])
     } else {
@@ -72,7 +83,7 @@ export function CardFilters() {
     }
   }
 
-  const handleSeriesChange = (id: string, checked: boolean) => {
+  const handleSeriesChange = (id, checked) => {
     if (checked) {
       setSelectedSeries([...selectedSeries, id])
     } else {
@@ -80,7 +91,7 @@ export function CardFilters() {
     }
   }
 
-  const handleExpansionChange = (id: string, checked: boolean) => {
+  const handleExpansionChange = (id, checked) => {
     if (checked) {
       setSelectedExpansions([...selectedExpansions, id])
     } else {
@@ -123,7 +134,7 @@ export function CardFilters() {
                   <Checkbox
                     id={`attribute-${attribute.id}`}
                     checked={selectedAttributes.includes(attribute.id)}
-                    onCheckedChange={(checked) => handleAttributeChange(attribute.id, checked as boolean)}
+                    onCheckedChange={(checked) => handleAttributeChange(attribute.id, checked)}
                   />
                   <Label htmlFor={`attribute-${attribute.id}`}>{attribute.label}</Label>
                 </div>
@@ -141,7 +152,7 @@ export function CardFilters() {
                   <Checkbox
                     id={`rarity-${rarity.id}`}
                     checked={selectedRarities.includes(rarity.id)}
-                    onCheckedChange={(checked) => handleRarityChange(rarity.id, checked as boolean)}
+                    onCheckedChange={(checked) => handleRarityChange(rarity.id, checked)}
                   />
                   <Label htmlFor={`rarity-${rarity.id}`}>{rarity.label}</Label>
                 </div>
@@ -154,12 +165,12 @@ export function CardFilters() {
           <AccordionTrigger>系列</AccordionTrigger>
           <AccordionContent>
             <div className="space-y-2">
-              {series.map((item) => (
+              {seriesOptions.map((item) => (
                 <div key={item.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`series-${item.id}`}
                     checked={selectedSeries.includes(item.id)}
-                    onCheckedChange={(checked) => handleSeriesChange(item.id, checked as boolean)}
+                    onCheckedChange={(checked) => handleSeriesChange(item.id, checked)}
                   />
                   <Label htmlFor={`series-${item.id}`}>{item.label}</Label>
                 </div>
@@ -177,7 +188,7 @@ export function CardFilters() {
                   <Checkbox
                     id={`expansion-${expansion.id}`}
                     checked={selectedExpansions.includes(expansion.id)}
-                    onCheckedChange={(checked) => handleExpansionChange(expansion.id, checked as boolean)}
+                    onCheckedChange={(checked) => handleExpansionChange(expansion.id, checked)}
                   />
                   <Label htmlFor={`expansion-${expansion.id}`}>{expansion.label}</Label>
                 </div>
@@ -186,10 +197,6 @@ export function CardFilters() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-
-      <div className="pt-4">
-        <Button className="w-full">套用篩選</Button>
-      </div>
     </div>
   )
 }

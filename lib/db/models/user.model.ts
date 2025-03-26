@@ -1,52 +1,82 @@
-import mongoose, { Schema, type Document, type Model } from "mongoose"
-import bcrypt from "bcrypt"
+import mongoose from "mongoose"
+import bcrypt from "bcryptjs"
 
-export interface IUser extends Document {
-  username: string
-  email: string
-  password: string
-  avatar?: string
-  bio?: string
-  location?: string
-  favoriteType?: string
-  isAdmin: boolean
-  googleId?: string
-  createdAt: Date
-  updatedAt: Date
-  lastLogin?: Date
-  status: "active" | "inactive" | "banned"
-  followers: mongoose.Types.ObjectId[]
-  following: mongoose.Types.ObjectId[]
-  comparePassword(candidatePassword: string): Promise<boolean>
-}
-
-const UserSchema: Schema = new Schema(
+const userSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, unique: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    avatar: { type: String },
-    bio: { type: String },
-    location: { type: String },
-    favoriteType: { type: String },
-    isAdmin: { type: Boolean, default: false },
-    googleId: { type: String },
-    lastLogin: { type: Date },
-    status: {
+    username: {
       type: String,
-      enum: ["active", "inactive", "banned"],
-      default: "active",
+      required: [true, "Please provide a username"],
+      unique: true,
+      trim: true,
+      minlength: [3, "Username must be at least 3 characters long"],
+      maxlength: [20, "Username cannot be more than 20 characters long"],
     },
-    followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    following: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    email: {
+      type: String,
+      required: [true, "Please provide an email"],
+      unique: true,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide a password"],
+      minlength: [6, "Password must be at least 6 characters long"],
+    },
+    avatar: {
+      type: String,
+      default: "/images/default-avatar.png",
+    },
+    bio: {
+      type: String,
+      maxlength: [200, "Bio cannot be more than 200 characters long"],
+      default: "",
+    },
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    favoriteCards: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Card",
+      },
+    ],
+    decks: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Deck",
+      },
+    ],
+    followers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    lastLogin: {
+      type: Date,
+      default: Date.now,
+    },
+    googleId: {
+      type: String,
+    },
   },
   {
     timestamps: true,
   },
 )
 
-// 保存前加密密碼
-UserSchema.pre<IUser>("save", async function (next) {
+// 密碼加密中間件
+userSchema.pre("save", async function (next) {
+  // 只有在密碼被修改時才重新加密
   if (!this.isModified("password")) return next()
 
   try {
@@ -58,13 +88,10 @@ UserSchema.pre<IUser>("save", async function (next) {
   }
 })
 
-// 比較密碼方法
-UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password)
+// 檢查密碼是否匹配的方法
+userSchema.methods.matchPassword = async function (enteredPassword: string) {
+  return await bcrypt.compare(enteredPassword, this.password)
 }
 
-// 避免 Mongoose 模型重複定義錯誤
-const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", UserSchema)
-
-export default User
+export default userSchema
 
