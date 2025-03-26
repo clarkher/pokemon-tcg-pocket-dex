@@ -7,6 +7,7 @@ export async function POST(req) {
   try {
     const { email, password } = await req.json()
 
+    // 驗證輸入
     if (!email || !password) {
       return NextResponse.json(
         {
@@ -20,11 +21,12 @@ export async function POST(req) {
     // 連接數據庫
     await connectToDatabase()
 
-    // 動態導入模型
+    // 動態導入 User 模型
     const { User } = require("@/lib/db/models")
 
     // 查找用戶
     const user = await User.findOne({ email })
+
     if (!user) {
       return NextResponse.json(
         {
@@ -37,6 +39,7 @@ export async function POST(req) {
 
     // 驗證密碼
     const isMatch = await bcryptjs.compare(password, user.password)
+
     if (!isMatch) {
       return NextResponse.json(
         {
@@ -47,7 +50,11 @@ export async function POST(req) {
       )
     }
 
-    // 生成 JWT
+    // 更新最後登錄時間
+    user.lastLogin = new Date()
+    await user.save()
+
+    // 創建 JWT
     const token = jwt.sign(
       {
         userId: user._id,
@@ -55,23 +62,20 @@ export async function POST(req) {
         username: user.username,
         isAdmin: user.isAdmin,
       },
-      process.env.JWT_SECRET || "fallback_secret",
+      process.env.JWT_SECRET,
       { expiresIn: "7d" },
     )
 
-    // 更新最後登錄時間
-    user.lastLogin = new Date()
-    await user.save()
-
+    // 返回成功響應
     return NextResponse.json({
       success: true,
+      message: "Login successful",
       token,
       user: {
         id: user._id,
         username: user.username,
         email: user.email,
         isAdmin: user.isAdmin,
-        avatar: user.avatar,
       },
     })
   } catch (error) {
@@ -79,7 +83,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message: "Server error",
+        message: "Login failed",
         error: error.message,
       },
       { status: 500 },

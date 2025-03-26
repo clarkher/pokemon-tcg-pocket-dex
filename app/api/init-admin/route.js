@@ -4,32 +4,32 @@ import bcryptjs from "bcryptjs"
 
 export async function GET() {
   try {
-    console.log("Initializing admin account...")
-
     // 連接數據庫
     await connectToDatabase()
-    console.log("Database connected")
 
-    // 動態導入模型
+    // 動態導入 User 模型
     const { User } = require("@/lib/db/models")
 
     // 檢查是否已存在管理員
-    const existingAdmin = await User.findOne({ isAdmin: true })
-    if (existingAdmin) {
-      console.log("Admin already exists")
+    const adminExists = await User.findOne({ isAdmin: true })
+
+    if (adminExists) {
       return NextResponse.json({
         success: true,
-        message: "Admin already exists",
+        message: "Admin account already exists",
         admin: {
-          username: existingAdmin.username,
-          email: existingAdmin.email,
-          id: existingAdmin._id,
+          id: adminExists._id,
+          email: adminExists.email,
+          username: adminExists.username,
         },
       })
     }
 
+    // 創建管理員密碼
+    const salt = await bcryptjs.genSalt(10)
+    const hashedPassword = await bcryptjs.hash("admin123", salt)
+
     // 創建管理員帳戶
-    const hashedPassword = await bcryptjs.hash("admin123", 10)
     const admin = new User({
       username: "admin",
       email: "admin@example.com",
@@ -38,19 +38,19 @@ export async function GET() {
     })
 
     await admin.save()
-    console.log("Admin created successfully")
 
+    // 返回成功響應
     return NextResponse.json({
       success: true,
-      message: "Admin created successfully",
+      message: "Admin account created successfully",
       admin: {
-        username: admin.username,
-        email: admin.email,
         id: admin._id,
+        email: admin.email,
+        username: admin.username,
       },
     })
   } catch (error) {
-    console.error("Error creating admin:", error)
+    console.error("Init admin error:", error)
     return NextResponse.json(
       {
         success: false,
