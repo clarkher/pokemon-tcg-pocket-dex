@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken"
-import bcrypt from "bcryptjs" // 使用 bcryptjs 而不是 bcrypt
+import bcryptjs from "bcryptjs" // 使用 bcryptjs 而不是 bcrypt
 import { type NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/db/mongodb"
 import { User } from "@/lib/db/models"
@@ -40,7 +40,7 @@ export async function loginUser(req: NextRequest) {
     }
 
     // 驗證密碼
-    const isMatch = await bcrypt.compare(password, user.password)
+    const isMatch = await bcryptjs.compare(password, user.password)
     if (!isMatch) {
       return NextResponse.json({ success: false, message: "Invalid credentials" }, { status: 401 })
     }
@@ -151,7 +151,7 @@ export async function login(email: string, password: string) {
   }
 
   // 驗證密碼
-  const isMatch = await bcrypt.compare(password, user.password)
+  const isMatch = await bcryptjs.compare(password, user.password)
   if (!isMatch) {
     throw new Error("Invalid credentials")
   }
@@ -199,8 +199,8 @@ export async function register(username: string, email: string, password: string
   }
 
   // 加密密碼
-  const salt = await bcrypt.genSalt(10)
-  const hashedPassword = await bcrypt.hash(password, salt)
+  const salt = await bcryptjs.genSalt(10)
+  const hashedPassword = await bcryptjs.hash(password, salt)
 
   // 創建新用戶
   const user = new User({

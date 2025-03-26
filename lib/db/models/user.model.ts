@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import bcrypt from "bcryptjs"
+import bcryptjs from "bcryptjs"
 
 const userSchema = new mongoose.Schema(
   {
@@ -68,6 +68,11 @@ const userSchema = new mongoose.Schema(
     googleId: {
       type: String,
     },
+    status: {
+      type: String,
+      enum: ["active", "inactive", "banned"],
+      default: "active",
+    },
   },
   {
     timestamps: true,
@@ -80,17 +85,17 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next()
 
   try {
-    const salt = await bcrypt.genSalt(10)
-    this.password = await bcrypt.hash(this.password, salt)
+    const salt = await bcryptjs.genSalt(10)
+    this.password = await bcryptjs.hash(this.password, salt)
     next()
-  } catch (error: any) {
+  } catch (error) {
     next(error)
   }
 })
 
 // 檢查密碼是否匹配的方法
-userSchema.methods.matchPassword = async function (enteredPassword: string) {
-  return await bcrypt.compare(enteredPassword, this.password)
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  return await bcryptjs.compare(enteredPassword, this.password)
 }
 
 export default userSchema
