@@ -1,129 +1,68 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { verifyToken } from "./lib/api/routes/auth"
+import { jwtVerify } from "jose"
 
+// 這個函數可以標記為異步
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const isDevelopment = process.env.NODE_ENV === "development"
+  // 獲取請求路徑
+  const path = request.nextUrl.pathname
 
-  // 允許公共路徑
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/init") ||
-    pathname.startsWith("/api/test-db") ||
-    pathname === "/api/admin/create-admin" ||
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/"
-  ) {
+  // 定義公開路徑
+  const isPublicPath =
+    path === "/login" ||
+    path === "/register" ||
+    path.startsWith("/api/auth") ||
+    path === "/" ||
+    path.startsWith("/cards") ||
+    path.startsWith("/decks") ||
+    path.startsWith("/events") ||
+    path.startsWith("/search") ||
+    path.startsWith("/forum") ||
+    path.startsWith("/_next") ||
+    path.startsWith("/favicon.ico") ||
+    path.includes(".")
+
+  // 定義管理員路徑
+  const isAdminPath = path.startsWith("/admin") && path !== "/admin/login"
+
+  // 獲取令牌
+  const token = request.cookies.get("token")?.value || ""
+
+  // 如果是公開路徑，直接放行
+  if (isPublicPath) {
     return NextResponse.next()
   }
 
-  // 處理管理員路由
-  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    // 在開發環境中跳過認證
-    if (isDevelopment) {
-      console.log("Development mode: Skipping admin authentication")
-      return NextResponse.next()
-    }
-
-    const token = request.cookies.get("admin-token")?.value
-
-    if (!token) {
-      // 如果是 API 路由，返回 JSON 錯誤
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
-      }
-      // 否則重定向到登錄頁面
+  // 如果沒有令牌，重定向到登錄頁面
+  if (!token) {
+    if (isAdminPath) {
       return NextResponse.redirect(new URL("/admin/login", request.url))
     }
-
-    try {
-      const { valid, data } = await verifyToken(token)
-
-      if (!valid || !data?.isAdmin) {
-        // 如果是 API 路由，返回 JSON 錯誤
-        if (pathname.startsWith("/api/")) {
-          return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
-        }
-        // 否則重定向到登錄頁面
-        return NextResponse.redirect(new URL("/admin/login", request.url))
-      }
-
-      return NextResponse.next()
-    } catch (error) {
-      console.error("Admin auth error:", error)
-      // 如果是 API 路由，返回 JSON 錯誤
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
-      }
-      // 否則重定向到登錄頁面
-      return NextResponse.redirect(new URL("/admin/login", request.url))
-    }
+    return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // 處理需要認證的用戶路由
-  if (
-    pathname.startsWith("/api/users/me") ||
-    pathname === "/profile" ||
-    pathname.startsWith("/decks/new") ||
-    pathname.includes("/edit")
-  ) {
-    // 在開發環境中跳過認證
-    if (isDevelopment) {
-      console.log("Development mode: Skipping user authentication")
-      return NextResponse.next()
+  try {
+    // 驗證令牌
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || "fallback_secret")
+    const { payload } = await jwtVerify(token, secret)
+
+    // 如果是管理員路徑，檢查是否為管理員
+    if (isAdminPath && !payload.isAdmin) {
+      return NextResponse.redirect(new URL("/", request.url))
     }
 
-    const token = request.cookies.get("token")?.value
-
-    if (!token) {
-      // 如果是 API 路由，返回 JSON 錯誤
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
-      }
-      // 否則重定向到登錄頁面
-      return NextResponse.redirect(new URL("/login", request.url))
-    }
-
-    try {
-      const { valid } = await verifyToken(token)
-
-      if (!valid) {
-        // 如果是 API 路由，返回 JSON 錯誤
-        if (pathname.startsWith("/api/")) {
-          return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
-        }
-        // 否則重定向到登錄頁面
-        return NextResponse.redirect(new URL("/login", request.url))
-      }
-
-      return NextResponse.next()
-    } catch (error) {
-      console.error("Auth error:", error)
-      // 如果是 API 路由，返回 JSON 錯誤
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 })
-      }
-      // 否則重定向到登錄頁面
-      return NextResponse.redirect(new URL("/login", request.url))
-    }
+    // 令牌有效，放行
+    return NextResponse.next()
+  } catch (error) {
+    // 令牌無效，清除 cookie 並重定向到登錄頁面
+    const response = NextResponse.redirect(new URL(isAdminPath ? "/admin/login" : "/login", request.url))
+    response.cookies.delete("token")
+    return response
   }
-
-  return NextResponse.next()
 }
 
+// 配置中間件匹配的路徑
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|public).*)",
-  ],
+  matcher: ["/((?!api/test-db|api/init-admin|_next/static|_next/image|favicon.ico).*)"],
 }
 

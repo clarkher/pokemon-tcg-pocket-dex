@@ -62,7 +62,8 @@
     "mongoose": "latest",
     "@prisma/client": "latest",
     "bcryptjs": "latest",
-    "jsonwebtoken": "latest"
+    "jsonwebtoken": "latest",
+    "jose": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

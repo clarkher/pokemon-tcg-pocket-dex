@@ -23,6 +23,7 @@ export async function GET() {
         admin: {
           username: existingAdmin.username,
           email: existingAdmin.email,
+          id: existingAdmin._id,
         },
       })
     }
@@ -45,6 +46,7 @@ export async function GET() {
       admin: {
         username: admin.username,
         email: admin.email,
+        id: admin._id,
       },
     })
   } catch (error) {

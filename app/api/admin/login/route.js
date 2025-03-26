@@ -23,9 +23,10 @@ export async function POST(req) {
     // 動態導入模型
     const { User } = require("@/lib/db/models")
 
-    // 查找管理員用戶
-    const admin = await User.findOne({ email, isAdmin: true })
-    if (!admin) {
+    // 查找用戶
+    const user = await User.findOne({ email })
+
+    if (!user || !user.isAdmin) {
       return NextResponse.json(
         {
           success: false,
@@ -36,7 +37,7 @@ export async function POST(req) {
     }
 
     // 驗證密碼
-    const isMatch = await bcryptjs.compare(password, admin.password)
+    const isMatch = await bcryptjs.compare(password, user.password)
     if (!isMatch) {
       return NextResponse.json(
         {
@@ -47,32 +48,46 @@ export async function POST(req) {
       )
     }
 
+    // 更新最後登錄時間
+    user.lastLogin = new Date()
+    await user.save()
+
     // 生成 JWT
     const token = jwt.sign(
       {
-        userId: admin._id,
-        email: admin.email,
-        username: admin.username,
-        isAdmin: admin.isAdmin,
+        userId: user._id,
+        email: user.email,
+        username: user.username,
+        isAdmin: user.isAdmin,
       },
       process.env.JWT_SECRET || "fallback_secret",
       { expiresIn: "7d" },
     )
 
-    // 更新最後登錄時間
-    admin.lastLogin = new Date()
-    await admin.save()
-
-    return NextResponse.json({
+    // 創建響應
+    const response = NextResponse.json({
       success: true,
-      token,
-      admin: {
-        id: admin._id,
-        username: admin.username,
-        email: admin.email,
-        isAdmin: admin.isAdmin,
+      message: "Login successful",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.isAdmin,
       },
     })
+
+    // 設置 cookie
+    response.cookies.set({
+      name: "token",
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: "/",
+    })
+
+    return response
   } catch (error) {
     console.error("Admin login error:", error)
     return NextResponse.json(
