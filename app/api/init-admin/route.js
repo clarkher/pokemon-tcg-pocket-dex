@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import connectToDatabase from "@/lib/db/mongodb"
-import { User } from "@/lib/db/models"
 import bcryptjs from "bcryptjs"
 
 export async function GET() {
@@ -11,11 +10,21 @@ export async function GET() {
     await connectToDatabase()
     console.log("Database connected")
 
+    // 動態導入模型
+    const { User } = require("@/lib/db/models")
+
     // 檢查是否已存在管理員
     const existingAdmin = await User.findOne({ isAdmin: true })
     if (existingAdmin) {
       console.log("Admin already exists")
-      return NextResponse.json({ message: "Admin already exists" })
+      return NextResponse.json({
+        success: true,
+        message: "Admin already exists",
+        admin: {
+          username: existingAdmin.username,
+          email: existingAdmin.email,
+        },
+      })
     }
 
     // 創建管理員帳戶
@@ -30,10 +39,24 @@ export async function GET() {
     await admin.save()
     console.log("Admin created successfully")
 
-    return NextResponse.json({ message: "Admin created successfully" })
+    return NextResponse.json({
+      success: true,
+      message: "Admin created successfully",
+      admin: {
+        username: admin.username,
+        email: admin.email,
+      },
+    })
   } catch (error) {
     console.error("Error creating admin:", error)
-    return NextResponse.json({ message: "Failed to create admin account", error: String(error) }, { status: 500 })
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to create admin account",
+        error: error.message,
+      },
+      { status: 500 },
+    )
   }
 }
 

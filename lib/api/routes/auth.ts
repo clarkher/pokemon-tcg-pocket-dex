@@ -1,8 +1,7 @@
 import jwt from "jsonwebtoken"
-import bcryptjs from "bcryptjs" // 使用 bcryptjs 而不是 bcrypt
+import bcryptjs from "bcryptjs"
 import { type NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/db/mongodb"
-import { User } from "@/lib/db/models"
 
 // 驗證 JWT 令牌
 export async function verifyToken(token: string) {
@@ -32,6 +31,9 @@ export async function loginUser(req: NextRequest) {
 
     // 連接數據庫
     await connectToDatabase()
+
+    // 動態導入模型
+    const { User } = require("@/lib/db/models")
 
     // 查找用戶
     const user = await User.findOne({ email })
@@ -86,6 +88,9 @@ export async function registerUser(req: NextRequest) {
 
     // 連接數據庫
     await connectToDatabase()
+
+    // 動態導入模型
+    const { User } = require("@/lib/db/models")
 
     // 檢查用戶是否已存在
     const existingUser = await User.findOne({
@@ -144,6 +149,9 @@ export async function registerUser(req: NextRequest) {
 export async function login(email: string, password: string) {
   await connectToDatabase()
 
+  // 動態導入模型
+  const { User } = require("@/lib/db/models")
+
   // 查找用戶
   const user = await User.findOne({ email })
   if (!user) {
@@ -183,6 +191,9 @@ export async function login(email: string, password: string) {
 // 註冊函數
 export async function register(username: string, email: string, password: string) {
   await connectToDatabase()
+
+  // 動態導入模型
+  const { User } = require("@/lib/db/models")
 
   // 檢查用戶是否已存在
   const existingUser = await User.findOne({

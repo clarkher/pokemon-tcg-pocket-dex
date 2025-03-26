@@ -1,79 +1,86 @@
-import type { NextRequest } from "next/server"
-import { verifyToken } from "./api/routes/auth"
+import { type NextRequest, NextResponse } from "next/server"
+import jwt from "jsonwebtoken"
 import connectToDatabase from "./db/mongodb"
-import { User } from "./db/models"
 
-// 中間件：驗證用戶是否已登入
-export function withAuth(handler: (req: NextRequest, userId: string) => Promise<Response>) {
-  return async (req: NextRequest) => {
-    // 從請求頭中獲取令牌
-    const authHeader = req.headers.get("Authorization")
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "未授權" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      })
+// 驗證 JWT 令牌
+export async function verifyJWT(token: string) {
+  try {
+    if (!token) {
+      throw new Error("No token provided")
     }
 
-    const token = authHeader.split(" ")[1]
-    const { valid, data, error } = verifyToken(token)
-
-    if (!valid || !data) {
-      return new Response(JSON.stringify({ error: error || "無效的令牌" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      })
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      userId: string
+      email: string
+      username: string
+      isAdmin: boolean
     }
 
-    // 將用戶ID傳遞給處理程序
-    return handler(req, (data as any).id)
+    return decoded
+  } catch (error) {
+    throw new Error("Invalid token")
   }
 }
 
-// 中間件：驗證用戶是否為管理員
-export function withAdmin(handler: (req: NextRequest) => Promise<Response>) {
-  return async (req: NextRequest) => {
+// 獲取當前用戶
+export async function getCurrentUser(req: NextRequest) {
+  try {
     // 從請求頭中獲取令牌
-    const authHeader = req.headers.get("Authorization")
+    const authHeader = req.headers.get("authorization")
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "未授權" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      })
+      return null
     }
 
     const token = authHeader.split(" ")[1]
-    const { valid, data, error } = verifyToken(token)
+    const decoded = await verifyJWT(token)
 
-    if (!valid || !data) {
-      return new Response(JSON.stringify({ error: error || "無效的令牌" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      })
+    // 連接數據庫
+    await connectToDatabase()
+
+    // 動態導入模型
+    const { User } = require("./db/models")
+
+    // 查找用戶
+    const user = await User.findById(decoded.userId).select("-password")
+    if (!user) {
+      return null
     }
 
-    // 檢查用戶是否為管理員
-    if (!(data as any).isAdmin) {
-      // 連接到數據庫並再次檢查用戶權限
-      try {
-        await connectToDatabase()
-        const user = await User.findById((data as any).id)
-
-        if (!user || !user.isAdmin) {
-          return new Response(JSON.stringify({ error: "需要管理員權限" }), {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          })
-        }
-      } catch (error) {
-        return new Response(JSON.stringify({ error: "驗證管理員權限時發生錯誤" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        })
-      }
-    }
-
-    return handler(req)
+    return user
+  } catch (error) {
+    return null
   }
+}
+
+// 檢查是否為管理員
+export async function isAdmin(req: NextRequest) {
+  const user = await getCurrentUser(req)
+  return user && user.isAdmin
+}
+
+// 中間件：需要登錄
+export async function requireAuth(req: NextRequest) {
+  const user = await getCurrentUser(req)
+
+  if (!user) {
+    return NextResponse.json({ success: false, message: "Authentication required" }, { status: 401 })
+  }
+
+  return user
+}
+
+// 中間件：需要管理員權限
+export async function requireAdmin(req: NextRequest) {
+  const user = await getCurrentUser(req)
+
+  if (!user) {
+    return NextResponse.json({ success: false, message: "Authentication required" }, { status: 401 })
+  }
+
+  if (!user.isAdmin) {
+    return NextResponse.json({ success: false, message: "Admin privileges required" }, { status: 403 })
+  }
+
+  return user
 }
 
